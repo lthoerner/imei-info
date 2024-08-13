@@ -92,6 +92,8 @@ pub enum ImeiCheckServiceError {
     UnknownAPIError { error: Response },
 }
 
+impl Error for ImeiCheckServiceError {}
+
 impl Display for ImeiCheckServiceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use ImeiCheckServiceError::*;
