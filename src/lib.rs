@@ -1,8 +1,8 @@
 #![allow(unused)]
 
 mod api;
-mod error;
-mod wrapper;
+pub mod error;
+pub mod wrapper;
 
 use std::{collections::VecDeque, str::FromStr};
 
