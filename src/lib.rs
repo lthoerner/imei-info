@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
+use std::error::Error;
+use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
 use reqwest::Error as ReqwestError;
+use reqwest::Response;
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
-use thiserror::Error;
-
-const MAX_15_DIGIT: u64 = 999999999999999;
 
 const SAMSUNG_INFO_CHECK_SID: u32 = 4;
 const SAMSUNG_KNOX_INFO_CHECK_SID: u32 = 76;
@@ -34,7 +34,7 @@ const LOST_DEVICE_ADD_SID: u32 = 100;
 const LOST_DEVICE_CHECK_SID: u32 = 101;
 
 #[derive(Deserialize, Debug)]
-struct ImeiCheckServiceResponse {
+struct ImeiCheckServiceStandardResponse {
     id: u32,
     ulid: Option<String>,
     status: ImeiCheckStatus,
@@ -43,7 +43,6 @@ struct ImeiCheckServiceResponse {
     created_at: DateTime<Utc>,
     imei: Option<String>,
     imei2: Option<String>,
-    // ? Maybe `Option<u32>`?
     sn: Option<String>,
     phone_number: Option<String>,
     text: Option<String>,
@@ -51,6 +50,18 @@ struct ImeiCheckServiceResponse {
     token_request_price: String,
     result: ImeiPhoneInfo,
     requested_at: DateTime<Utc>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ImeiCheckServicePendingResponse {
+    message: String,
+    history_id: String,
+    ulid: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct ImeiCheckServiceInvalidTokenResponse {
+    detail: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -69,20 +80,33 @@ struct ImeiPhoneInfo {
     model: String,
 }
 
-#[derive(Error, Debug)]
-pub enum ImeiInfoError {
-    #[error("IMEI or TAC number passed to SDK is invalid.")]
-    InvalidInputNumber,
-    #[error("Value passed to API is invalid.")]
-    InvalidAPIValue { detail: String },
-    #[error("Request has not resolved yet and is pending.")]
-    RequestPending { history_id: String },
-    #[error("API key is malformed.")]
-    InvalidAPIKey,
-    #[error("Requested service ID is invalid.")]
+// TODO: Maybe split these into enum with `Wrapper` and `API` variants
+#[derive(Debug)]
+pub enum ImeiCheckServiceError {
+    RequestPending { history_id: String, ulid: String },
+    InvalidImeiNumber,
+    MissingAPIKey,
+    InvalidAPIKey { detail: String },
     InvalidServiceID,
-    #[error("Unknown error occurred when resolving request.")]
     UnknownRequestError { error: ReqwestError },
+    UnknownAPIError { error: Response },
+}
+
+impl Display for ImeiCheckServiceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ImeiCheckServiceError::*;
+        f.write_str(match self {
+            InvalidImeiNumber => "IMEI or TAC number passed to wrapper is invalid",
+            InvalidAPIKey => "API key is invalid",
+            InvalidServiceID => "service id is invalid",
+            InvalidAPIValue => "value passed to API is invalid",
+            RequestPending => "request has not resolved yet and is pending",
+            UnknownRequestError => "unknown error occurred with request",
+            UnknownAPIError => "unknown error occurred with API; wrapper may be out-of-date",
+        })?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -102,27 +126,39 @@ impl From<ImeiPhoneInfo> for PhoneInfo {
     }
 }
 
-impl From<ReqwestError> for ImeiInfoError {
-    fn from(reqwest_error: ReqwestError) -> Self {
-        if let Some(status_code) = reqwest_error.status() {
-            return match status_code {
-                StatusCode::ACCEPTED => Self::RequestPending {
-                    history_id: "PLACEHOLDER".to_owned(),
-                },
-                StatusCode::UNAUTHORIZED => Self::InvalidAPIValue {
-                    detail: "PLACEHOLDER".to_owned(),
-                },
-                StatusCode::FORBIDDEN => Self::InvalidAPIKey,
-                StatusCode::NOT_FOUND => Self::InvalidServiceID,
-                _ => Self::UnknownRequestError {
-                    error: reqwest_error.without_url(),
-                },
-            };
+async fn classify_response(
+    response: Response,
+) -> Result<ImeiCheckServiceStandardResponse, ImeiCheckServiceError> {
+    match response.status() {
+        StatusCode::OK => Ok(response
+            .json::<ImeiCheckServiceStandardResponse>()
+            .await
+            .unwrap()),
+        StatusCode::ACCEPTED => {
+            let ImeiCheckServicePendingResponse {
+                history_id, ulid, ..
+            } = response
+                .json::<ImeiCheckServicePendingResponse>()
+                .await
+                .unwrap();
+            Err(ImeiCheckServiceError::RequestPending { history_id, ulid })
         }
+        StatusCode::FORBIDDEN => Err(ImeiCheckServiceError::MissingAPIKey),
+        StatusCode::UNAUTHORIZED => {
+            let ImeiCheckServiceInvalidTokenResponse { detail } = response
+                .json::<ImeiCheckServiceInvalidTokenResponse>()
+                .await
+                .unwrap();
+            Err(ImeiCheckServiceError::InvalidAPIKey { detail })
+        }
+        StatusCode::NOT_FOUND => Err(ImeiCheckServiceError::InvalidServiceID),
+        _ => Err(ImeiCheckServiceError::UnknownAPIError { error: response }),
+    }
+}
 
-        return Self::UnknownRequestError {
-            error: reqwest_error.without_url(),
-        };
+impl From<ReqwestError> for ImeiCheckServiceError {
+    fn from(error: ReqwestError) -> Self {
+        ImeiCheckServiceError::UnknownRequestError { error }
     }
 }
 
@@ -186,14 +222,14 @@ fn luhn_checksum(value: &str) -> Option<u32> {
     Some(checksum)
 }
 
-pub async fn get_imei_info(api_key: &str, imei: &str) -> Result<PhoneInfo, ImeiInfoError> {
+pub async fn get_imei_info(api_key: &str, imei: &str) -> Result<PhoneInfo, ImeiCheckServiceError> {
     let response = check_imei_with_service(BASIC_IMEI_CHECK_SID, api_key, imei).await?;
     Ok(response.result.into())
 }
 
-pub async fn get_tac_info(api_key: &str, tac: &str) -> Result<PhoneInfo, ImeiInfoError> {
+pub async fn get_tac_info(api_key: &str, tac: &str) -> Result<PhoneInfo, ImeiCheckServiceError> {
     let Some(tac_imei) = make_tac_valid(tac) else {
-        return Err(ImeiInfoError::InvalidInputNumber);
+        return Err(ImeiCheckServiceError::InvalidImeiNumber);
     };
 
     let response = check_imei_with_service(BASIC_IMEI_CHECK_SID, api_key, &tac_imei).await?;
@@ -204,9 +240,9 @@ async fn check_imei_with_service(
     service_id: u32,
     api_key: &str,
     imei: &str,
-) -> Result<ImeiCheckServiceResponse, ImeiInfoError> {
+) -> Result<ImeiCheckServiceStandardResponse, ImeiCheckServiceError> {
     if !is_valid_imei(imei) {
-        return Err(ImeiInfoError::InvalidInputNumber);
+        return Err(ImeiCheckServiceError::InvalidImeiNumber);
     }
 
     let client = Client::new();
@@ -214,11 +250,9 @@ async fn check_imei_with_service(
         .get(format!("https://dash.imei.info/api/check/{service_id}"))
         .query(&[("API_KEY", api_key), ("imei", imei)])
         .send()
-        .await?
-        .json::<ImeiCheckServiceResponse>()
         .await?;
 
-    Ok(response)
+    Ok(classify_response(response).await?)
 }
 
 #[cfg(test)]
