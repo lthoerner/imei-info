@@ -3,38 +3,43 @@ use std::fmt::Display;
 
 use reqwest::{Error as ReqwestError, Response, StatusCode};
 
-use crate::{
+use crate::api::{
     ServiceCheckInvalidApiKeyResponseBody, ServiceCheckPendingResponseBody,
     ServiceCheckStandardResponseBody,
 };
 
 pub type Result<T> = std::result::Result<T, ServiceCheckError>;
 
-// TODO: Maybe split these into enum with `Wrapper` and `API` variants
+// TODO: Maybe split these into enum with `Wrapper` and `Api` variants
 #[derive(Debug)]
 pub enum ServiceCheckError {
     RequestPending { history_id: String, ulid: String },
     InvalidImeiNumber,
-    MissingAPIKey,
-    InvalidAPIKey { detail: String },
+    MissingApiKey,
+    InvalidApiKey { detail: String },
     InvalidServiceID,
     UnknownRequestError { error: ReqwestError },
-    UnknownAPIError { error: Response },
+    UnknownApiError { error: Response },
 }
 
 impl Error for ServiceCheckError {}
 
 impl Display for ServiceCheckError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ServiceCheckError::*;
         f.write_str(match self {
-            InvalidImeiNumber => "IMEI or TAC number passed to wrapper is invalid",
-            InvalidAPIKey => "API key is invalid",
-            InvalidServiceID => "service id is invalid",
-            InvalidAPIValue => "value passed to API is invalid",
-            RequestPending => "request has not resolved yet and is pending",
-            UnknownRequestError => "unknown error occurred with request",
-            UnknownAPIError => "unknown error occurred with API; wrapper may be out-of-date",
+            ServiceCheckError::RequestPending { .. } => {
+                "request has not resolved yet and is pending"
+            }
+            ServiceCheckError::InvalidImeiNumber => {
+                "IMEI or TAC number passed to wrapper is invalid"
+            }
+            ServiceCheckError::MissingApiKey => "API key was not provided",
+            ServiceCheckError::InvalidApiKey { .. } => "API key is invalid",
+            ServiceCheckError::InvalidServiceID => "service ID is invalid",
+            ServiceCheckError::UnknownRequestError { .. } => "unknown error occurred with request",
+            ServiceCheckError::UnknownApiError { .. } => {
+                "unknown error occurred with API; wrapper may be out-of-date"
+            }
         })?;
 
         Ok(())
@@ -51,7 +56,6 @@ impl ServiceCheckError {
     pub(crate) async fn classify_response(
         response: Response,
     ) -> Result<ServiceCheckStandardResponseBody> {
-        use ServiceCheckError::*;
         match response.status() {
             StatusCode::OK => Ok(response
                 .json::<ServiceCheckStandardResponseBody>()
@@ -64,18 +68,18 @@ impl ServiceCheckError {
                     .json::<ServiceCheckPendingResponseBody>()
                     .await
                     .unwrap();
-                Err(RequestPending { history_id, ulid })
+                Err(ServiceCheckError::RequestPending { history_id, ulid })
             }
-            StatusCode::FORBIDDEN => Err(MissingAPIKey),
+            StatusCode::FORBIDDEN => Err(ServiceCheckError::MissingApiKey),
             StatusCode::UNAUTHORIZED => {
                 let ServiceCheckInvalidApiKeyResponseBody { detail } = response
                     .json::<ServiceCheckInvalidApiKeyResponseBody>()
                     .await
                     .unwrap();
-                Err(InvalidAPIKey { detail })
+                Err(ServiceCheckError::InvalidApiKey { detail })
             }
-            StatusCode::NOT_FOUND => Err(InvalidServiceID),
-            _ => Err(UnknownAPIError { error: response }),
+            StatusCode::NOT_FOUND => Err(ServiceCheckError::InvalidServiceID),
+            _ => Err(ServiceCheckError::UnknownApiError { error: response }),
         }
     }
 }
