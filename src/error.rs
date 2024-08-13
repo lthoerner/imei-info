@@ -40,9 +40,7 @@ impl Display for ServiceCheckError {
             ServiceCheckError::UnknownApiError { .. } => {
                 "unknown error occurred with API; wrapper may be out-of-date"
             }
-        })?;
-
-        Ok(())
+        })
     }
 }
 
