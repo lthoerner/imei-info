@@ -2,6 +2,8 @@ use std::error::Error;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use crate::ApiPhoneInfo;
+
 /// An IMEI number, represented using an array of digits to prevent integer over/underflow or leading-zero truncation.
 #[derive(Debug)]
 pub struct Imei {
@@ -23,8 +25,8 @@ pub struct PhoneInfo {
     pub model: String,
 }
 
-impl From<crate::api::PhoneInfo> for PhoneInfo {
-    fn from(info: crate::api::PhoneInfo) -> Self {
+impl From<ApiPhoneInfo> for PhoneInfo {
+    fn from(info: ApiPhoneInfo) -> Self {
         Self {
             imei: Imei::from_str(&info.imei).unwrap(),
             manufacturer: info.brand_name,

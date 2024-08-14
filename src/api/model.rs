@@ -1,9 +1,7 @@
-use chrono::{DateTime, Utc};
-use reqwest::Client;
-use serde::Deserialize;
+#![allow(unused)]
 
-use crate::error::{Result, ServiceCheckError};
-use crate::wrapper::Imei;
+use chrono::{DateTime, Utc};
+use serde::Deserialize;
 
 const SAMSUNG_INFO_CHECK_SID: u32 = 4;
 const SAMSUNG_KNOX_INFO_CHECK_SID: u32 = 76;
@@ -40,7 +38,7 @@ pub(crate) enum ServiceCheckStatus {
 }
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct PhoneInfo {
+pub(crate) struct ApiPhoneInfo {
     pub(crate) imei: String,
     pub(crate) brand_name: String,
     pub(crate) model: String,
@@ -61,7 +59,7 @@ pub(crate) struct ServiceCheckStandardResponseBody {
     pub(crate) text: Option<String>,
     pub(crate) token_key: String,
     pub(crate) token_request_price: String,
-    pub(crate) result: PhoneInfo,
+    pub(crate) result: ApiPhoneInfo,
     pub(crate) requested_at: DateTime<Utc>,
 }
 
@@ -75,19 +73,4 @@ pub(crate) struct ServiceCheckPendingResponseBody {
 #[derive(Deserialize, Debug)]
 pub(crate) struct ServiceCheckInvalidApiKeyResponseBody {
     pub(crate) detail: String,
-}
-
-pub(crate) async fn check_imei_with_service(
-    service_id: u32,
-    api_key: &str,
-    imei: &Imei,
-) -> Result<ServiceCheckStandardResponseBody> {
-    let client = Client::new();
-    let response = client
-        .get(format!("https://dash.imei.info/api/check/{service_id}"))
-        .query(&[("API_KEY", api_key), ("imei", &imei.to_string())])
-        .send()
-        .await?;
-
-    Ok(ServiceCheckError::classify_response(response).await?)
 }

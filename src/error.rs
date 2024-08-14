@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use reqwest::{Error as ReqwestError, Response, StatusCode};
 
-use crate::api::{
+use crate::{
     ServiceCheckInvalidApiKeyResponseBody, ServiceCheckPendingResponseBody,
     ServiceCheckStandardResponseBody,
 };
