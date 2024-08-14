@@ -2,23 +2,25 @@ use std::error::Error;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::ApiPhoneInfo;
 
 /// An IMEI number, represented using an array of digits to prevent integer over/underflow or leading-zero truncation.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Imei {
     pub digits: [u8; 15],
 }
 
 /// A TAC number, represented using an array of digits to prevent integer over/underflow or leading-zero truncation.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tac {
     pub digits: [u8; 8],
 }
 
 /// The basic information about a phone: its IMEI, make, and model.
 /// This is generally used in a context where the IMEI is already known, but it is included for flexibility's sake.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhoneInfo {
     pub imei: Imei,
     pub manufacturer: String,
