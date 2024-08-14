@@ -1,5 +1,9 @@
 use chrono::{DateTime, Utc};
+use reqwest::Client;
 use serde::Deserialize;
+
+use crate::error::{Result, ServiceCheckError};
+use crate::wrapper::Imei;
 
 const SAMSUNG_INFO_CHECK_SID: u32 = 4;
 const SAMSUNG_KNOX_INFO_CHECK_SID: u32 = 76;
@@ -71,4 +75,19 @@ pub(crate) struct ServiceCheckPendingResponseBody {
 #[derive(Deserialize, Debug)]
 pub(crate) struct ServiceCheckInvalidApiKeyResponseBody {
     pub(crate) detail: String,
+}
+
+pub(crate) async fn check_imei_with_service(
+    service_id: u32,
+    api_key: &str,
+    imei: &Imei,
+) -> Result<ServiceCheckStandardResponseBody> {
+    let client = Client::new();
+    let response = client
+        .get(format!("https://dash.imei.info/api/check/{service_id}"))
+        .query(&[("API_KEY", api_key), ("imei", &imei.to_string())])
+        .send()
+        .await?;
+
+    Ok(ServiceCheckError::classify_response(response).await?)
 }

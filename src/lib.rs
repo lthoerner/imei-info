@@ -4,9 +4,8 @@ mod api;
 pub mod error;
 pub mod wrapper;
 
-use std::{collections::VecDeque, str::FromStr};
-
-use reqwest::Client;
+use std::collections::VecDeque;
+use std::str::FromStr;
 
 use api::{ServiceCheckStandardResponseBody, BASIC_IMEI_CHECK_SID};
 use error::{Result, ServiceCheckError};
@@ -25,7 +24,7 @@ pub async fn get_imei_info(api_key: &str, imei: &str) -> Result<PhoneInfo> {
         return Err(ServiceCheckError::InvalidImeiNumber);
     };
 
-    let response = check_imei_with_service(BASIC_IMEI_CHECK_SID, api_key, &imei).await?;
+    let response = api::check_imei_with_service(BASIC_IMEI_CHECK_SID, api_key, &imei).await?;
     Ok(response.result.into())
 }
 
@@ -46,23 +45,9 @@ pub async fn get_tac_info(api_key: &str, tac: &str) -> Result<PhoneInfo> {
         return Err(ServiceCheckError::InvalidImeiNumber);
     };
 
-    let response = check_imei_with_service(BASIC_IMEI_CHECK_SID, api_key, &Imei::from(tac)).await?;
+    let response =
+        api::check_imei_with_service(BASIC_IMEI_CHECK_SID, api_key, &Imei::from(tac)).await?;
     Ok(response.result.into())
-}
-
-async fn check_imei_with_service(
-    service_id: u32,
-    api_key: &str,
-    imei: &Imei,
-) -> Result<ServiceCheckStandardResponseBody> {
-    let client = Client::new();
-    let response = client
-        .get(format!("https://dash.imei.info/api/check/{service_id}"))
-        .query(&[("API_KEY", api_key), ("imei", &imei.to_string())])
-        .send()
-        .await?;
-
-    Ok(ServiceCheckError::classify_response(response).await?)
 }
 
 #[cfg(test)]

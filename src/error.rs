@@ -8,7 +8,7 @@ use crate::api::{
     ServiceCheckStandardResponseBody,
 };
 
-pub type Result<T> = std::result::Result<T, ServiceCheckError>;
+pub(crate) type Result<T> = std::result::Result<T, ServiceCheckError>;
 
 // TODO: Maybe split these into enum with `Wrapper` and `Api` variants
 #[derive(Debug)]
