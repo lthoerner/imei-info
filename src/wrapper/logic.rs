@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use crate::{Imei, PhoneInfo, Result, ServiceCheckError, Tac, BASIC_IMEI_CHECK_SID};
+use crate::api::BASIC_IMEI_CHECK_SID;
+use crate::error::{Result, ServiceCheckError};
+use crate::wrapper::{Imei, PhoneInfo, Tac};
 
 /// Get the basic information about a device (make and model) using its IMEI.
 /// The IMEI is required to be a string because if it was a numerical type, leading zeroes would be truncated.

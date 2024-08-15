@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ApiPhoneInfo;
+use crate::api::ApiPhoneInfo;
 
 /// An IMEI number, represented using an array of digits to prevent integer over/underflow or leading-zero truncation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

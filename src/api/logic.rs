@@ -1,6 +1,8 @@
 use reqwest::Client;
 
-use crate::{Imei, Result, ServiceCheckError, ServiceCheckStandardResponseBody};
+use crate::api::ServiceCheckStandardResponseBody;
+use crate::error::{Result, ServiceCheckError};
+use crate::wrapper::Imei;
 
 pub(crate) async fn check_imei_with_service(
     service_id: u32,

@@ -2,7 +2,6 @@ mod api;
 mod error;
 mod wrapper;
 
-use api::*;
 pub use error::*;
 pub use wrapper::*;
 
