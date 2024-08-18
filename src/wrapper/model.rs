@@ -46,8 +46,9 @@ impl From<ApiPhoneInfo> for PhoneInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ImeiWrapperError {
+    ValueOutOfRange,
     CannotParseDigits,
     ChecksumDoesNotMatch,
 }
@@ -57,6 +58,9 @@ impl Error for ImeiWrapperError {}
 impl Display for ImeiWrapperError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            ImeiWrapperError::ValueOutOfRange => {
+                "provided numeric value is out of the required range for an IMEI or TAC"
+            }
             ImeiWrapperError::CannotParseDigits => {
                 "one or more characters in the string is not numeric"
             }
@@ -131,6 +135,34 @@ impl From<Imei> for Tac {
     }
 }
 
+macro_rules! impl_int_to_digits {
+    ( $( $numeric_type:ty ),*; $main_type:ty; $digit_count:literal ) => {
+        $(
+            impl TryFrom<$numeric_type> for $main_type {
+                type Error = ImeiWrapperError;
+                fn try_from(mut val: $numeric_type) -> Result<Self, Self::Error> {
+                    #[allow(unused_comparisons)]
+                    if val < 0 {
+                        return Err(ImeiWrapperError::ValueOutOfRange);
+                    }
+
+                    let mut digits = [0u8; $digit_count];
+                    for i in (0..$digit_count).rev() {
+                        if i == 0 && val > 9 {
+                            return Err(ImeiWrapperError::ValueOutOfRange);
+                        }
+
+                        digits[i] = (val % 10) as u8;
+                        val /= 10;
+                    }
+
+                    Ok(Self { digits })
+                }
+            }
+        )*
+    };
+}
+
 macro_rules! impl_digits_to_int {
     ( $( $numeric_type:ty ),*; $main_type:ty ) => {
         $(
@@ -147,6 +179,9 @@ macro_rules! impl_digits_to_int {
         )*
     };
 }
+
+impl_int_to_digits!(i32, u32, i64, u64, i128, u128, isize, usize; Imei; 15);
+impl_int_to_digits!(i32, u32, i64, u64, i128, u128, isize, usize; Tac; 8);
 
 impl_digits_to_int!(i32, u32, i64, u64, i128, u128, isize, usize; Tac);
 impl_digits_to_int!(i32, u32, i64, u64, i128, u128, isize, usize; &Tac);

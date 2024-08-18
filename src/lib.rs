@@ -46,4 +46,222 @@ mod tests {
         let phone_info = get_tac_info(&api_key, "35508675").await.unwrap();
         println!("{:#?}", phone_info);
     }
+
+    #[test]
+    fn try_good_imei_from_int() {
+        assert_eq!(
+            Imei::try_from(1234567890i32),
+            Ok(Imei {
+                digits: [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890u32),
+            Ok(Imei {
+                digits: [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(123456789012345i64),
+            Ok(Imei {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(123456789012345u64),
+            Ok(Imei {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(123456789012345i128),
+            Ok(Imei {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(123456789012345u128),
+            Ok(Imei {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(123456789012345isize),
+            Ok(Imei {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5],
+            }),
+        );
+
+        assert_eq!(
+            Imei::try_from(123456789012345usize),
+            Ok(Imei {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5],
+            }),
+        )
+    }
+
+    #[test]
+    fn try_good_tac_from_int() {
+        assert_eq!(
+            Tac::try_from(12345678i32),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678u32),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678i64),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678u64),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678i128),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678u128),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678isize),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        );
+
+        assert_eq!(
+            Tac::try_from(12345678usize),
+            Ok(Tac {
+                digits: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
+        )
+    }
+
+    #[test]
+    fn try_bad_imei_from_int() {
+        assert_eq!(
+            Imei::try_from(-1i32),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(-1i64),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890123456i64),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890123456u64),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(-1i128),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890123456i128),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890123456u128),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(-1isize),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890123456isize),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Imei::try_from(1234567890123456usize),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        )
+    }
+
+    #[test]
+    fn try_bad_tac_from_int() {
+        assert_eq!(Tac::try_from(-1i32), Err(ImeiWrapperError::ValueOutOfRange));
+
+        assert_eq!(Tac::try_from(-1i64), Err(ImeiWrapperError::ValueOutOfRange));
+
+        assert_eq!(
+            Tac::try_from(123456789i64),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(123456789u64),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(-1i128),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(123456789i128),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(123456789u128),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(-1isize),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(123456789isize),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        );
+
+        assert_eq!(
+            Tac::try_from(123456789usize),
+            Err(ImeiWrapperError::ValueOutOfRange)
+        )
+    }
 }
