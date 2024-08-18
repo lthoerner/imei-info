@@ -6,20 +6,29 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::ApiPhoneInfo;
 
-/// An IMEI number, represented using an array of digits to prevent integer over/underflow or leading-zero truncation.
+/// An IMEI number, represented using an array of digits to prevent integer over/underflow or
+/// leading-zero truncation.
+///
+/// This type implements `Into` for `i64`, `u64`, `i128`, and `u128`. It does not implement `Into`
+/// for 32-bit or platform-dependent integer types because the IMEI is 15 digits and typically
+/// cannot be stored in anything less than a 64-bit integer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Imei {
     pub digits: [u8; 15],
 }
 
-/// A TAC number, represented using an array of digits to prevent integer over/underflow or leading-zero truncation.
+/// A TAC number, represented using an array of digits to prevent integer over/underflow or
+/// leading-zero truncation.
+///
+/// This type implements `Into` for `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, and `usize`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Tac {
     pub digits: [u8; 8],
 }
 
 /// The basic information about a phone: its IMEI, make, and model.
-/// This is generally used in a context where the IMEI is already known, but it is included for flexibility's sake.
+/// This is generally used in a context where the IMEI is already known, but it is included for
+/// flexibility's sake.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhoneInfo {
     pub imei: Imei,
@@ -121,6 +130,28 @@ impl From<Imei> for Tac {
         }
     }
 }
+
+macro_rules! impl_digits_to_int {
+    ( $( $numeric_type:ty ),*; $main_type:ty ) => {
+        $(
+            impl From<$main_type> for $numeric_type {
+                fn from(val: $main_type) -> Self {
+                    val.digits
+                        .iter()
+                        .rev()
+                        .enumerate()
+                        .map(|(i, d)| *d as $numeric_type * (10 as $numeric_type).pow(i as u32))
+                        .sum()
+                }
+            }
+        )*
+    };
+}
+
+impl_digits_to_int!(i32, u32, i64, u64, i128, u128, isize, usize; Tac);
+impl_digits_to_int!(i32, u32, i64, u64, i128, u128, isize, usize; &Tac);
+impl_digits_to_int!(i64, u64, i128, u128; Imei);
+impl_digits_to_int!(i64, u64, i128, u128; &Imei);
 
 impl FromStr for Imei {
     type Err = ImeiWrapperError;
