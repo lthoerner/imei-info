@@ -97,9 +97,14 @@ impl Imei {
         self.digits[14]
     }
 
+    /// Retrieve the IMEI without the check digit, mostly in order to get the Luhn checksum.
+    pub fn without_check_digit(&self) -> &[u8; 14] {
+        self.digits[0..14].try_into().unwrap()
+    }
+
     /// Check if the IMEI is numerically valid. This does *not* mean that the IMEI is actually linked to a corresponding real-world device.
-    fn is_valid(&self) -> bool {
-        luhn_checksum(&self.digits) == self.check_digit()
+    pub fn is_valid(&self) -> bool {
+        luhn_checksum(self.without_check_digit()) == self.check_digit()
     }
 }
 
@@ -112,6 +117,11 @@ impl Tac {
     /// Retrieve the bare model identifier, excluding the reporting body code (digits 3 through 8 of the TAC).
     pub fn model_identifier(&self) -> &[u8; 6] {
         self.digits[2..=7].try_into().unwrap()
+    }
+
+    // * This function only exists to make the `impl_int_to_digits` macro work for `Tac`
+    const fn is_valid(&self) -> bool {
+        true
     }
 }
 
@@ -156,7 +166,12 @@ macro_rules! impl_int_to_digits {
                         val /= 10;
                     }
 
-                    Ok(Self { digits })
+                    let imei_or_tac = Self { digits };
+                    if !imei_or_tac.is_valid() {
+                        return Err(ImeiWrapperError::ChecksumDoesNotMatch);
+                    }
+
+                    Ok(imei_or_tac)
                 }
             }
         )*
@@ -214,6 +229,20 @@ impl FromStr for Tac {
     }
 }
 
+impl TryFrom<&str> for Imei {
+    type Error = ImeiWrapperError;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::from_str(s)
+    }
+}
+
+impl TryFrom<&str> for Tac {
+    type Error = ImeiWrapperError;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::from_str(s)
+    }
+}
+
 impl ToString for Imei {
     fn to_string(&self) -> String {
         self.digits.iter().map(|d| d.to_string()).collect()
@@ -239,7 +268,7 @@ fn string_to_digits<const N: usize>(s: &str) -> Option<[u8; N]> {
     Some(digits)
 }
 
-fn luhn_checksum(digits: &[u8]) -> u8 {
+pub(crate) fn luhn_checksum(digits: &[u8]) -> u8 {
     let mut checksum = 0;
     for (i, digit) in digits.into_iter().enumerate() {
         let digit = *digit as u32;

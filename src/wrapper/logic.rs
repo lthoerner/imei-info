@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::api::BASIC_IMEI_CHECK_SID;
 use crate::error::{Result, ServiceCheckError};
 use crate::wrapper::{Imei, PhoneInfo, Tac};
@@ -12,8 +10,8 @@ use crate::wrapper::{Imei, PhoneInfo, Tac};
 /// - The IMEI.info API returns a "pending" (202) response, requiring a second request to retrieve the information
 /// - The request could not be built or parsed due to a logic error within this crate or `reqwest`
 /// - The IMEI.info API has been updated with a breaking change since the last crate release
-pub async fn get_imei_info(api_key: &str, imei: &str) -> Result<PhoneInfo> {
-    let Ok(imei) = Imei::from_str(imei) else {
+pub async fn get_imei_info(api_key: &str, imei: impl TryInto<Imei>) -> Result<PhoneInfo> {
+    let Ok(imei) = imei.try_into() else {
         return Err(ServiceCheckError::InvalidImeiNumber);
     };
 
@@ -34,8 +32,8 @@ pub async fn get_imei_info(api_key: &str, imei: &str) -> Result<PhoneInfo> {
 /// - The IMEI.info API returns a "pending" (202) response, requiring a second request to retrieve the information
 /// - The request could not be built or parsed due to a logic error within this crate or `reqwest`
 /// - The IMEI.info API has been updated with a breaking change since the last crate release
-pub async fn get_tac_info(api_key: &str, tac: &str) -> Result<PhoneInfo> {
-    let Ok(tac) = Tac::from_str(tac) else {
+pub async fn get_tac_info(api_key: &str, tac: impl TryInto<Tac>) -> Result<PhoneInfo> {
+    let Ok(tac) = tac.try_into() else {
         return Err(ServiceCheckError::InvalidImeiNumber);
     };
 

@@ -22,6 +22,43 @@ pub enum ServiceCheckError {
     UnknownApiError { error: Response },
 }
 
+impl PartialEq for ServiceCheckError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                ServiceCheckError::RequestPending {
+                    history_id: history_id_self,
+                    ulid: ulid_self,
+                },
+                ServiceCheckError::RequestPending {
+                    history_id: history_id_other,
+                    ulid: ulid_other,
+                },
+            ) => history_id_self.eq(history_id_other) && ulid_self.eq(ulid_other),
+            (ServiceCheckError::InvalidImeiNumber, ServiceCheckError::InvalidImeiNumber) => true,
+            (ServiceCheckError::MissingApiKey, ServiceCheckError::MissingApiKey) => true,
+            (
+                ServiceCheckError::InvalidApiKey {
+                    detail: detail_self,
+                },
+                ServiceCheckError::InvalidApiKey {
+                    detail: detail_other,
+                },
+            ) => detail_self.eq(detail_other),
+            (ServiceCheckError::InvalidServiceID, ServiceCheckError::InvalidServiceID) => true,
+            (
+                ServiceCheckError::UnknownRequestError { error: error_self },
+                ServiceCheckError::UnknownRequestError { error: error_other },
+            ) => format!("{:?}", error_self) == format!("{:?}", error_other),
+            (
+                ServiceCheckError::UnknownApiError { error: error_self },
+                ServiceCheckError::UnknownApiError { error: error_other },
+            ) => format!("{:?}", error_self) == format!("{:?}", error_other),
+            _ => false,
+        }
+    }
+}
+
 impl Error for ServiceCheckError {}
 
 impl Display for ServiceCheckError {
